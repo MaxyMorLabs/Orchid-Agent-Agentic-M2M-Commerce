@@ -45,7 +45,7 @@ jobs:
       - run: npm ci
       - run: npm test
 
-  # ── Smart Contracts (Soroban/Rust) ────────────────────────────────────────
+  # ── Smart Contracts (Soroban/Rust on Stellar) ─────────────────────────────
   contracts:
     name: Smart Contract Tests
     runs-on: ubuntu-latest
@@ -63,8 +63,8 @@ jobs:
         with:
           workspaces: contracts/escrow
 
-      - name: Install soroban-cli
-        run: cargo install --locked soroban-cli --version 21.0.1
+      # Official Stellar CLI GitHub Action (replaces soroban-cli)
+      - uses: stellar/stellar-cli-action@v2
 
       - name: Run contract unit tests
         run: cargo test

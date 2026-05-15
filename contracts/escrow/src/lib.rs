@@ -12,6 +12,8 @@ pub struct SpendingLimit {
 #[contract]
 pub struct EscrowContract;
 
+const LIMIT_KEY: &str = "limit";
+
 #[contractimpl]
 impl EscrowContract {
     /// Initialize escrow with agent address and daily USDC spending limit
@@ -23,7 +25,9 @@ impl EscrowContract {
             spent_today: 0,
             last_reset: env.ledger().timestamp(),
         };
-        env.storage().instance().set(&Symbol::new(&env, "limit"), &limit);
+        env.storage()
+            .instance()
+            .set(&Symbol::new(&env, LIMIT_KEY), &limit);
     }
 
     /// Agent pays a supplier; enforces daily spending cap
@@ -31,7 +35,7 @@ impl EscrowContract {
         let mut limit: SpendingLimit = env
             .storage()
             .instance()
-            .get(&Symbol::new(&env, "limit"))
+            .get(&Symbol::new(&env, LIMIT_KEY))
             .unwrap();
 
         limit.agent.require_auth();
@@ -50,7 +54,9 @@ impl EscrowContract {
 
         token::Client::new(&env, &token).transfer(&limit.agent, &supplier, &amount);
         limit.spent_today += amount;
-        env.storage().instance().set(&Symbol::new(&env, "limit"), &limit);
+        env.storage()
+            .instance()
+            .set(&Symbol::new(&env, LIMIT_KEY), &limit);
 
         env.events()
             .publish((Symbol::new(&env, "payment"),), (supplier, amount));
@@ -60,7 +66,7 @@ impl EscrowContract {
     pub fn get_limit(env: Env) -> SpendingLimit {
         env.storage()
             .instance()
-            .get(&Symbol::new(&env, "limit"))
+            .get(&Symbol::new(&env, LIMIT_KEY))
             .unwrap()
     }
 }
@@ -68,13 +74,14 @@ impl EscrowContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{testutils::{Address as _, Ledger}, Env};
+    use soroban_sdk::{testutils::Address as _, Env};
 
     #[test]
     fn test_initialize_and_get_limit() {
         let env = Env::default();
         env.mock_all_auths();
-        let contract_id = env.register_contract(None, EscrowContract);
+        // v26 API: env.register(Contract, ()) instead of register_contract
+        let contract_id = env.register(EscrowContract, ());
         let client = EscrowContractClient::new(&env, &contract_id);
 
         let agent = Address::generate(&env);
@@ -82,6 +89,21 @@ mod test {
 
         let limit = client.get_limit();
         assert_eq!(limit.daily_limit, 500_000_000);
+        assert_eq!(limit.spent_today, 0);
+    }
+
+    #[test]
+    fn test_daily_limit_enforced() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(EscrowContract, ());
+        let client = EscrowContractClient::new(&env, &contract_id);
+
+        let agent = Address::generate(&env);
+        client.initialize(&agent, &100); // 100 unit limit
+
+        let limit = client.get_limit();
+        assert_eq!(limit.daily_limit, 100);
         assert_eq!(limit.spent_today, 0);
     }
 }
