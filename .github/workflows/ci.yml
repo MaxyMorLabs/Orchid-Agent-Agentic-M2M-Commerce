@@ -65,9 +65,6 @@ jobs:
         with:
           workspaces: contracts/escrow
 
-      # Official Stellar CLI GitHub Action
-      - uses: stellar/stellar-cli@v26.0.0
-
       - name: Run contract unit tests
         run: cargo test
 
