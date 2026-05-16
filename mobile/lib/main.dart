@@ -47,7 +47,7 @@ class _WatcherHomeState extends State<WatcherHome> {
   void _setupFCM() {
     FirebaseMessaging.onMessage.listen((msg) {
       final n = msg.notification;
-      if (n != null) {
+      if (n != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${n.title}: ${n.body}')),
         );
